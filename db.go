@@ -47,3 +47,8 @@ func ListItems(db *gorm.DB, alias string, offest, limit int) ([]DBItem, error) {
 	rst := dyncTable(db, alias).Offset(offest).Limit(limit).Find(out)
 	return out, rst.Error
 }
+
+func DeleteItem(db *gorm.DB, alias string, id uint) error {
+	rst := dyncTable(db, alias).Delete(&DBItem{}, id)
+	return rst.Error
+}
