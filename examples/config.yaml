@@ -1,0 +1,8 @@
+rpc_node: https://eth-mainnet.g.alchemy.com/v2/kk6oTEe0a35zzK3Ia67SZtzzibO2N8Fq
+subscriptions:
+  - alias: token
+    contract: 0x2260fac5e5542a773aa44fbcfedf7c193bc2c599
+    abi_file: abi.json
+    event_name: Transfer
+    filter: 
+    start_block: 15817750

@@ -20,7 +20,6 @@ type Event struct {
 	cb     EventCallback
 	query  ethereum.FilterQuery
 	eABI   abi.ABI
-	ent    abi.Event
 	client *ethclient.Client
 }
 
@@ -58,20 +57,22 @@ func NewEvent(conf SubscriptionConf, client *ethclient.Client, cb EventCallback)
 	e, ok := cAbi.Events[conf.EventName]
 	if ok {
 		out.query.Topics = append(out.query.Topics, []common.Hash{e.ID})
-		for i, it := range e.Inputs {
-			if it.Indexed {
-				it.Indexed = false
-				e.Inputs[i] = it
-			}
-		}
-		cAbi.Events[e.ID.Hex()] = e
 	} else if conf.EventName != "" {
 		log.Println("warning, not found the event name:", conf.Alias, conf.ABIFile, conf.EventName)
 		return nil, fmt.Errorf("not found the Event Name from ABI:%s", conf.EventName)
 	}
+	for _, event := range cAbi.Events {
+		for i, it := range event.Inputs {
+			if it.Indexed {
+				it.Indexed = false
+				event.Inputs[i] = it
+			}
+		}
+		cAbi.Events[event.ID.Hex()] = event
+		// log.Println("indexed:", event.Name, event.ID.Hex(), cAbi.Events[event.ID.Hex()])
+	}
 
 	out.eABI = cAbi
-	out.ent = e
 	out.client = client
 
 	return &out, nil
@@ -103,9 +104,10 @@ func (e *Event) Run(start, end uint64) error {
 			}
 			data = append(data, t.Bytes()...)
 		}
+		data = append(data, vLog.Data...)
 		err := e.eABI.UnpackIntoMap(info, tid, data)
 		if err != nil {
-			log.Println("warning, fail to UnpackIntoMap:", e.conf.Alias, tid, err)
+			log.Println("warning, fail to UnpackIntoMap:", e.conf.Alias, info[KEventName], tid, len(data), err)
 			info[KData] = data
 		}
 		if len(e.conf.Filter) == 0 {
