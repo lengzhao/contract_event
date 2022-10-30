@@ -15,12 +15,12 @@ import (
 
 type Config struct {
 	RCPNode       string                           `yaml:"rpc_node"`
+	DBName        string                           `yaml:"db_name"`
 	Subscriptions []contractevent.SubscriptionConf `yaml:"subscriptions"`
 }
 
 func main() {
-	confFile := flag.String("conf", "../config.yaml", "config file(yaml)")
-	dbFile := flag.String("db", "sqlite.db", "sqlite file")
+	confFile := flag.String("conf", "./config.yaml", "config file(yaml)")
 	flag.Parse()
 	data, err := os.ReadFile(*confFile)
 	if err != nil {
@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		log.Fatal("fail to unmarshal config:", err)
 	}
-	db, err := gorm.Open(sqlite.Open(*dbFile), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(conf.DBName), &gorm.Config{})
 	if err != nil {
 		log.Fatal("fail to open sqlite file:", err)
 	}

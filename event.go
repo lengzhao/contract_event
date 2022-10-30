@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strings"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -26,8 +27,10 @@ type Event struct {
 type EventCallback func(alias string, info map[string]interface{}) error
 
 const (
+	KAlias       = "alias"
 	KBlock       = "block"
 	KBlockNumber = "block_number"
+	KContract    = "contract"
 	KTX          = "tx"
 	KLogIndex    = "log_index"
 	KTopic       = "topic"
@@ -39,29 +42,29 @@ func NewEvent(conf SubscriptionConf, client *ethclient.Client, cb EventCallback)
 	var out Event
 	out.conf = conf
 	out.cb = cb
-	out.query = ethereum.FilterQuery{
-		Addresses: []common.Address{
-			common.HexToAddress(conf.Contract),
-		},
-	}
 	data, err := os.ReadFile(conf.ABIFile)
 	if err != nil {
-		log.Println("fail to open abi file:", conf.ABIFile, err)
-		return nil, err
+		data = GetABIData(conf.ABIFile)
+		if len(data) == 0 {
+			log.Println("fail to open abi file:", conf.ABIFile, err)
+			return nil, err
+		}
 	}
 	cAbi, err := abi.JSON(bytes.NewReader(data))
 	if err != nil {
 		log.Println("fail to load abi:", conf.ABIFile, err)
 		return nil, err
 	}
-	e, ok := cAbi.Events[conf.EventName]
-	if ok {
-		out.query.Topics = append(out.query.Topics, []common.Hash{e.ID})
-	} else if conf.EventName != "" {
-		log.Println("warning, not found the event name:", conf.Alias, conf.ABIFile, conf.EventName)
-		return nil, fmt.Errorf("not found the Event Name from ABI:%s", conf.EventName)
+
+	out.query, err = newQuery(conf, cAbi)
+	if err != nil {
+		return nil, err
 	}
+
 	for _, event := range cAbi.Events {
+		if _, ok := cAbi.Events[event.ID.Hex()]; ok {
+			continue
+		}
 		for i, it := range event.Inputs {
 			if it.Indexed {
 				it.Indexed = false
@@ -69,7 +72,6 @@ func NewEvent(conf SubscriptionConf, client *ethclient.Client, cb EventCallback)
 			}
 		}
 		cAbi.Events[event.ID.Hex()] = event
-		// log.Println("indexed:", event.Name, event.ID.Hex(), cAbi.Events[event.ID.Hex()])
 	}
 
 	out.eABI = cAbi
@@ -91,6 +93,8 @@ func (e *Event) Run(start, end uint64) error {
 	for _, vLog := range logs {
 		tid := vLog.Topics[0].Hex()
 		info := make(map[string]interface{})
+		info[KAlias] = e.conf.Alias
+		info[KContract] = vLog.Address.Hex()
 		info[KBlock] = vLog.BlockHash.Hex()
 		info[KBlockNumber] = vLog.BlockNumber
 		info[KTX] = vLog.TxHash.Hex()
@@ -149,4 +153,52 @@ func check(filter map[string]string, info map[string]interface{}) error {
 		}
 	}
 	return nil
+}
+
+func newQuery(conf SubscriptionConf, cAbi abi.ABI) (ethereum.FilterQuery, error) {
+	query := ethereum.FilterQuery{}
+	for _, addr := range conf.Contract {
+		query.Addresses = append(query.Addresses, common.HexToAddress(addr))
+	}
+
+	e, ok := cAbi.Events[conf.EventName]
+	if !ok {
+		// 如果EventName为空，则表示监听合约的所有事件
+		if conf.EventName == "" {
+			return query, nil
+		}
+		// 如果非空，且没有找到，说明ABI文件有问题，没有对应事件的ABI
+		return query, fmt.Errorf("not found the Event Name from ABI:%s", conf.EventName)
+	}
+	// 只监听合约的指定事件
+	query.Topics = append(query.Topics, []common.Hash{e.ID})
+	// 如果有filter，它对应的链上事件有indexed修饰，则可以直接添加到topics里，更确定性的过滤事件
+	if len(conf.Filter) > 0 {
+		for _, it := range e.Inputs {
+			if !it.Indexed {
+				break
+			}
+			fv := conf.Filter[it.Name]
+			if fv == "" {
+				query.Topics = append(query.Topics, []common.Hash{})
+				continue
+			}
+			if strings.HasPrefix(fv, "0x") {
+				query.Topics = append(query.Topics, []common.Hash{common.HexToHash(fv)})
+				continue
+			}
+			switch it.Type.T {
+			case abi.IntTy, abi.UintTy:
+				// 可能的场景：监听NFT的指定的tokenId的事件
+				bv, ok := new(big.Int).SetString(fv, 10)
+				if !ok {
+					return query, fmt.Errorf("error filter value,key:%s,hope int value:%s", it.Name, fv)
+				}
+				query.Topics = append(query.Topics, []common.Hash{common.BigToHash(bv)})
+			default:
+				query.Topics = append(query.Topics, []common.Hash{common.HexToHash(fv)})
+			}
+		}
+	}
+	return query, nil
 }

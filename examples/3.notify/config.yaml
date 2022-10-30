@@ -1,0 +1,11 @@
+rpc_node: https://eth-mainnet.g.alchemy.com/v2/kk6oTEe0a35zzK3Ia67SZtzzibO2N8Fq
+web_hook: http://127.0.0.1:8080
+subscriptions:
+  - alias: token
+    contract: 
+      - 0x2260fac5e5542a773aa44fbcfedf7c193bc2c599
+    abi_file: erc20
+    event_name: Transfer
+    filter: 
+      from: 0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35
+    start_block: 15817750
