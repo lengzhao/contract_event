@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"gorm.io/gorm"
 )
 
 type Event struct {
@@ -37,6 +38,18 @@ const (
 	KEventName   = "event_name"
 	KData        = "data"
 )
+
+func NewEventWithDB(conf SubscriptionConf, client *ethclient.Client, db *gorm.DB) (*Event, error) {
+	return NewEvent(conf, client, func(alias string, info map[string]interface{}) error {
+		var item DBItem
+		item.TX = info[KTX].(string)
+		item.LogIndex = info[KLogIndex].(uint)
+		item.Others, _ = json.Marshal(info)
+		id, err := InsertItem(db, alias, item)
+		log.Println("new event:", alias, id, item.TX, item.LogIndex, err)
+		return err
+	})
+}
 
 func NewEvent(conf SubscriptionConf, client *ethclient.Client, cb EventCallback) (*Event, error) {
 	var out Event
