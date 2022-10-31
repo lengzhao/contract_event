@@ -52,3 +52,9 @@ func DeleteItem(db *gorm.DB, alias string, id uint) error {
 	rst := dyncTable(db, alias).Delete(&DBItem{}, id)
 	return rst.Error
 }
+
+func ItemsTotal(db *gorm.DB, alias string) (uint, error) {
+	var it DBItem
+	rst := dyncTable(db, alias).Last(&it)
+	return it.ID, rst.Error
+}
