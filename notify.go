@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
+	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +23,7 @@ func NewNotifyTask(db *gorm.DB, alias, webHook string) *NotifyTask {
 func (t *NotifyTask) Run(limit uint) error {
 	id, err := GetNotifyRecord(t.db, t.alias)
 	if err != nil {
-		log.Println("fail to get record id:", err)
+		log.Error("fail to get record id:", err)
 		return err
 	}
 	items, err := ListItems(t.db, t.alias, int(id), int(limit))
@@ -38,12 +38,12 @@ func (t *NotifyTask) Run(limit uint) error {
 		data, _ := json.Marshal(info)
 		resp, err := http.DefaultClient.Post(t.webHook, "application/json", bytes.NewReader(data))
 		if err != nil {
-			log.Println("fail to Post:", err)
+			log.Error("fail to Post:", err)
 			return err
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			log.Println("notify, get wrong code(hope 200 OK):", resp.Status)
+			log.Error("notify, get wrong code(hope 200 OK):", resp.Status)
 			return fmt.Errorf("error response code:%s", resp.Status)
 		}
 		if it.ID > last {

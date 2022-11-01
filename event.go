@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -36,7 +36,7 @@ const (
 	KLogIndex    = "log_index"
 	KTopic       = "topic"
 	KEventName   = "event_name"
-	KData        = "data"
+	KRawData     = "raw_data"
 )
 
 func NewEventWithDB(conf SubscriptionConf, client *ethclient.Client, db *gorm.DB) (*Event, error) {
@@ -46,7 +46,7 @@ func NewEventWithDB(conf SubscriptionConf, client *ethclient.Client, db *gorm.DB
 		item.LogIndex = info[KLogIndex].(uint)
 		item.Others, _ = json.Marshal(info)
 		id, err := InsertItem(db, alias, item)
-		log.Println("new event:", alias, id, item.TX, item.LogIndex, err)
+		log.Info("new event:", alias, id, item.TX, item.LogIndex, err)
 		return err
 	})
 }
@@ -59,13 +59,13 @@ func NewEvent(conf SubscriptionConf, client *ethclient.Client, cb EventCallback)
 	if err != nil {
 		data = GetABIData(conf.ABIFile)
 		if len(data) == 0 {
-			log.Println("fail to open abi file:", conf.ABIFile, err)
+			log.Error("fail to open abi file:", conf.ABIFile, err)
 			return nil, err
 		}
 	}
 	cAbi, err := abi.JSON(bytes.NewReader(data))
 	if err != nil {
-		log.Println("fail to load abi:", conf.ABIFile, err)
+		log.Error("fail to load abi:", conf.ABIFile, err)
 		return nil, err
 	}
 
@@ -99,7 +99,7 @@ func (e *Event) Run(start, end uint64) error {
 	query.ToBlock = new(big.Int).SetUint64(end)
 	logs, err := e.client.FilterLogs(context.Background(), query)
 	if err != nil {
-		log.Println("fail to FilterLogs:", e.conf.Alias, err)
+		log.Error("fail to FilterLogs:", e.conf.Alias, err)
 		return err
 	}
 
@@ -124,8 +124,8 @@ func (e *Event) Run(start, end uint64) error {
 		data = append(data, vLog.Data...)
 		err := e.eABI.UnpackIntoMap(info, tid, data)
 		if err != nil {
-			log.Println("warning, fail to UnpackIntoMap:", e.conf.Alias, info[KEventName], tid, len(data), err)
-			info[KData] = data
+			log.Warn("fail to UnpackIntoMap:", e.conf.Alias, info[KEventName], tid, len(data), err)
+			info[KRawData] = data
 		}
 		if len(e.conf.Filter) == 0 {
 			err = e.cb(e.conf.Alias, info)
@@ -136,7 +136,7 @@ func (e *Event) Run(start, end uint64) error {
 		}
 		err = check(e.conf.Filter, info)
 		if err != nil {
-			log.Println("filter limit:", err)
+			log.Info("filter limit:", err)
 			continue
 		}
 		err = e.cb(e.conf.Alias, info)

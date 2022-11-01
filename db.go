@@ -3,9 +3,45 @@ package contractevent
 import (
 	"errors"
 	"fmt"
+	"time"
 
+	log "github.com/sirupsen/logrus"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+type DBConf struct {
+	Type     string `json:"type,omitempty" yaml:"type"`
+	DSN      string `json:"dsn,omitempty" yaml:"dsn"`
+	LogLevel int    `json:"log_level,omitempty" yaml:"log_level"`
+}
+
+func NewDB(conf DBConf) (*gorm.DB, error) {
+	gConf := gorm.Config{}
+	gConf.Logger = logger.New(log.StandardLogger(), logger.Config{
+		SlowThreshold:             200 * time.Millisecond,
+		LogLevel:                  logger.LogLevel(conf.LogLevel),
+		IgnoreRecordNotFoundError: true,
+		Colorful:                  false,
+	})
+
+	switch conf.Type {
+	case "mysql":
+		return gorm.Open(mysql.Open(conf.DSN), &gConf)
+	case "postgres":
+		return gorm.Open(postgres.Open(conf.DSN), &gConf)
+	case "sqlite":
+		return gorm.Open(sqlite.Open(conf.DSN), &gConf)
+	case "sqlserver":
+		return gorm.Open(sqlserver.Open(conf.DSN), &gConf)
+	default:
+		return nil, fmt.Errorf("not support")
+	}
+}
 
 type DBItem struct {
 	gorm.Model
@@ -38,6 +74,7 @@ func InsertItem(db *gorm.DB, alias string, item DBItem) (uint, error) {
 		if it.ID > 0 {
 			return it.ID, nil
 		}
+		log.Warn("fail to insert item:", alias, it.TX, it.LogIndex, rst.Error)
 		return 0, rst.Error
 	}
 	return item.ID, nil
