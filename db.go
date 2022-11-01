@@ -9,8 +9,8 @@ import (
 
 type DBItem struct {
 	gorm.Model
-	TX       string `gorm:"uniqueIndex:idx_log;column:tx"`
-	LogIndex uint   `gorm:"uniqueIndex:idx_log;column:log_index"`
+	TX       string `gorm:"column:tx"`
+	LogIndex uint   `gorm:"column:log_index"`
 	Others   []byte
 }
 
@@ -24,7 +24,7 @@ func CreateTable(db *gorm.DB, alias string) error {
 		return nil
 	}
 	name := dyncTable(db, alias).Statement.Table
-	rst := db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX idx_%s ON %s(tx)", name, name))
+	rst := db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX idx_%s ON %s(tx,log_index)", name, name))
 	return rst.Error
 }
 
@@ -45,7 +45,7 @@ func InsertItem(db *gorm.DB, alias string, item DBItem) (uint, error) {
 
 func ListItems(db *gorm.DB, alias string, offest, limit int) ([]DBItem, error) {
 	var out []DBItem
-	rst := dyncTable(db, alias).Offset(offest).Limit(limit).Find(out)
+	rst := dyncTable(db, alias).Offset(offest).Limit(limit).Find(&out)
 	return out, rst.Error
 }
 
