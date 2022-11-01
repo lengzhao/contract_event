@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"log"
 	"os"
@@ -9,14 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	contractevent "github.com/lengzhao/contract_event"
 	"gopkg.in/yaml.v3"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 type Config struct {
 	RCPNode       string                           `yaml:"rpc_node"`
-	DBName        string                           `yaml:"db_name"`
 	Subscriptions []contractevent.SubscriptionConf `yaml:"subscriptions"`
+	DB            contractevent.DBConf             `yaml:"db"`
 }
 
 func main() {
@@ -31,7 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatal("fail to unmarshal config:", err)
 	}
-	db, err := gorm.Open(sqlite.Open(conf.DBName), &gorm.Config{})
+	db, err := contractevent.NewDB(conf.DB)
 	if err != nil {
 		log.Fatal("fail to open sqlite file:", err)
 	}
@@ -47,16 +44,8 @@ func main() {
 		os.Exit(2)
 	}
 	for _, sub := range conf.Subscriptions {
-		contractevent.CreateTable(db, sub.Alias)
-		event, err := contractevent.NewEvent(sub, client, func(alias string, info map[string]interface{}) error {
-			var item contractevent.DBItem
-			item.TX = info[contractevent.KTX].(string)
-			item.LogIndex = info[contractevent.KLogIndex].(uint)
-			item.Others, _ = json.Marshal(info)
-			id, err := contractevent.InsertItem(db, alias, item)
-			log.Println("new event:", alias, id, item.TX, item.LogIndex)
-			return err
-		})
+		contractevent.CreateEventTable(db, sub.Alias)
+		event, err := contractevent.NewEventWithDB(sub, client, db)
 		if err != nil {
 			log.Println("fail to sub event:", err)
 			os.Exit(2)
