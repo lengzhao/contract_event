@@ -20,7 +20,7 @@ func TestCreateTable(t *testing.T) {
 	ldb, _ := db.DB()
 	defer ldb.Close()
 	alias := "alias_name"
-	err = CreateTable(db, alias)
+	err = CreateEventTable(db, alias)
 	if err != nil {
 		t.Fatal(err)
 	}

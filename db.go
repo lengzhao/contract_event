@@ -54,7 +54,7 @@ func dyncTable(db *gorm.DB, alias string) *gorm.DB {
 	return db.Table("event_" + alias)
 }
 
-func CreateTable(db *gorm.DB, alias string) error {
+func CreateEventTable(db *gorm.DB, alias string) error {
 	err := dyncTable(db, alias).AutoMigrate(&DBItem{})
 	if err != nil {
 		return nil
