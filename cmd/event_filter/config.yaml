@@ -1,3 +1,5 @@
+log_file:
+log_level: 3
 chain:
   rpc_node: https://eth-mainnet.g.alchemy.com/v2/kk6oTEe0a35zzK3Ia67SZtzzibO2N8Fq
   delay_block: 7
@@ -13,6 +15,8 @@ subscriptions:
     event_name: Transfer
     filter: 
     start_block: 15817750
+    blocks_per_req: 5
+    wait_per_req: 1000
     web_hook: 
 http:
   port: 8080

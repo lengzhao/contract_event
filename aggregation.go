@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +49,7 @@ func NewManager(conf Config) (*Manager, error) {
 			log.Error("fail to new event:", it.Alias, err)
 			return nil, err
 		}
+		SetBlockRecord(db, it.Alias, it.StartBlock)
 		out.events[it.Alias] = event
 		if it.WebHook != "" {
 			out.notification[it.Alias] = NewNotifyTask(db, it.Alias, it.WebHook)
@@ -78,10 +79,14 @@ func (m *Manager) Run() {
 		m.wg.Add(1)
 		go func(alias string, event *Event, c *chain) {
 			var wTime time.Duration = 100
+			if event.conf.WaitPerReq == 0 {
+				event.conf.WaitPerReq = 100
+			}
+			step := event.conf.BlocksPerReq
 			for {
 				select {
 				case <-time.After(time.Millisecond * wTime):
-					wTime = 100
+					wTime = time.Duration(event.conf.WaitPerReq)
 				case <-m.stopping:
 					m.wg.Done()
 					return
@@ -98,16 +103,17 @@ func (m *Manager) Run() {
 					continue
 				}
 				bn++
-				if last > bn+5 {
-					last = bn + 5
+				if last > bn+step {
+					last = bn + step
 				}
 				err = event.Run(bn, last)
 				if err != nil {
-					log.Error("fail to event.Run:", alias, err)
+					log.Error("fail to event.Run:", alias, bn, err)
 					wTime = 5000
 					continue
 				}
 				SetBlockRecord(m.db, alias, last)
+				log.Infoln("finish block:", alias, bn, last)
 			}
 		}(alias, it, m.chain)
 	}

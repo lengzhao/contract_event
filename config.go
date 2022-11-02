@@ -3,13 +3,15 @@ package contractevent
 import _ "embed"
 
 type SubscriptionConf struct {
-	Alias      string            `yaml:"alias"`
-	Contract   []string          `yaml:"contract"`
-	ABIFile    string            `yaml:"abi_file"`
-	EventName  string            `yaml:"event_name"`
-	Filter     map[string]string `yaml:"filter"`
-	StartBlock uint64            `yaml:"start_block"`
-	WebHook    string            `yaml:"web_hook"`
+	Alias        string            `yaml:"alias"`
+	Contract     []string          `yaml:"contract"`
+	ABIFile      string            `yaml:"abi_file"`
+	EventName    string            `yaml:"event_name"`
+	Filter       map[string]string `yaml:"filter"`
+	StartBlock   uint64            `yaml:"start_block"`
+	BlocksPerReq uint64            `yaml:"blocks_per_req"`
+	WaitPerReq   int64             `yaml:"wait_per_req"`
+	WebHook      string            `yaml:"web_hook"`
 }
 
 type DBConf struct {

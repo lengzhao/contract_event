@@ -30,6 +30,7 @@ func newChain(url string, delay uint64) (*chain, error) {
 		log.Errorln("fail to get block number:", err)
 		return nil, err
 	}
+	log.Infoln("new block:", out.lastBlock)
 	out.lastSync = time.Now()
 	out.delayNumber = delay
 	return &out, nil
@@ -45,6 +46,7 @@ func (c *chain) SafeBlockNumber() uint64 {
 			log.Warnln("fail to get block number:", err)
 		} else {
 			c.lastBlock = bn
+			log.Infoln("new block:", c.lastBlock)
 		}
 	}
 	if c.lastBlock > c.delayNumber {
