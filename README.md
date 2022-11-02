@@ -8,6 +8,24 @@
 
 ## 说明
 
+### 使用库
+
+```golang
+import (
+    contractevent "github.com/lengzhao/contract_event"
+)
+
+event, err := contractevent.NewEvent(sub, client, func(alias string, info map[string]interface{}) error {
+    log.Println("new event:", alias, info)
+    return nil
+})
+...
+err = event.Run(sub.StartBlock, sub.StartBlock+1)
+if err != nil {
+    log.Fatal("fail to run:", err)
+}
+```
+
 ### Event
 
 1. 通过`event := NewEvent(...)`，创建订阅

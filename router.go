@@ -13,7 +13,7 @@ type ginRouter struct {
 	db *gorm.DB
 }
 
-func HttpRouter(router *gin.Engine, db *gorm.DB) {
+func HttpRouter(router *gin.RouterGroup, db *gorm.DB) {
 	lr := ginRouter{db}
 	router.GET("/logs", lr.getEvent)
 	router.GET("/unnotified_logs", lr.requestUnnotifiedEvent)
@@ -36,12 +36,12 @@ func (lr *ginRouter) getEvent(c *gin.Context) {
 	var param reqLogParam
 	err := c.BindQuery(&param)
 	if err != nil {
-		log.Debug("query error:", err)
+		log.Debugln("query error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	if param.Alias == "" {
-		log.Debug("request alias")
+		log.Debugln("request alias")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "request alias"})
 		return
 	}
@@ -60,7 +60,7 @@ func (lr *ginRouter) getEvent(c *gin.Context) {
 		out.Items = append(out.Items, info)
 	}
 	c.JSON(http.StatusOK, out)
-	log.Debug("getEvent:", param.Alias, len(items))
+	log.Debugln("getEvent:", param.Alias, len(items))
 }
 
 type reqUnnotifiedParam struct {
@@ -72,12 +72,12 @@ func (lr *ginRouter) requestUnnotifiedEvent(c *gin.Context) {
 	var param reqUnnotifiedParam
 	err := c.BindQuery(&param)
 	if err != nil {
-		log.Debug("query error:", err)
+		log.Debugln("query error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	if param.Alias == "" {
-		log.Debug("request alias")
+		log.Debugln("request alias")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "request alias"})
 		return
 	}
@@ -90,7 +90,7 @@ func (lr *ginRouter) requestUnnotifiedEvent(c *gin.Context) {
 	offset, err := GetNotifyRecord(lr.db, param.Alias)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		log.Debug("not any record:", param.Alias, err)
+		log.Debugln("not any record:", param.Alias, err)
 		return
 	}
 	items, _ := ListItems(lr.db, param.Alias, int(offset), param.Limit)
@@ -106,5 +106,5 @@ func (lr *ginRouter) requestUnnotifiedEvent(c *gin.Context) {
 	}
 	SetNotifyRecord(lr.db, param.Alias, last)
 	c.JSON(http.StatusOK, out)
-	log.Debug("requestUnnotifiedEvent:", param.Alias, len(items))
+	log.Debugln("requestUnnotifiedEvent:", param.Alias, len(items))
 }

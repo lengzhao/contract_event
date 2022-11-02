@@ -17,13 +17,14 @@ type NotifyTask struct {
 }
 
 func NewNotifyTask(db *gorm.DB, alias, webHook string) *NotifyTask {
+	SetNotifyRecord(db, alias, 0)
 	return &NotifyTask{alias: alias, db: db, webHook: webHook}
 }
 
 func (t *NotifyTask) Run(limit uint) error {
 	id, err := GetNotifyRecord(t.db, t.alias)
 	if err != nil {
-		log.Error("fail to get record id:", err)
+		log.Errorln("fail to get record id:", err)
 		return err
 	}
 	items, err := ListItems(t.db, t.alias, int(id), int(limit))
@@ -38,12 +39,12 @@ func (t *NotifyTask) Run(limit uint) error {
 		data, _ := json.Marshal(info)
 		resp, err := http.DefaultClient.Post(t.webHook, "application/json", bytes.NewReader(data))
 		if err != nil {
-			log.Error("fail to Post:", err)
+			log.Errorln("fail to Post:", err)
 			return err
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			log.Error("notify, get wrong code(hope 200 OK):", resp.Status)
+			log.Errorln("notify, get wrong code(hope 200 OK):", resp.Status)
 			return fmt.Errorf("error response code:%s", resp.Status)
 		}
 		if it.ID > last {

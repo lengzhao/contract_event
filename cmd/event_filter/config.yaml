@@ -1,0 +1,19 @@
+chain:
+  rpc_node: https://eth-mainnet.g.alchemy.com/v2/kk6oTEe0a35zzK3Ia67SZtzzibO2N8Fq
+  delay_block: 7
+db:
+  engine: sqlite
+  dsn: sqlite.db
+  log_level: 2
+subscriptions:
+  - alias: token
+    contract: 
+      - 0x2260fac5e5542a773aa44fbcfedf7c193bc2c599
+    abi_file: erc20
+    event_name: Transfer
+    filter: 
+    start_block: 15817750
+    web_hook: 
+http:
+  port: 8080
+  prefix_path: /blockchain/event/

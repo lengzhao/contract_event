@@ -40,13 +40,17 @@ const (
 )
 
 func NewEventWithDB(conf SubscriptionConf, client *ethclient.Client, db *gorm.DB) (*Event, error) {
+	err := CreateEventTable(db, conf.Alias)
+	if err != nil {
+		log.Warnln("fail to create database table of event ", conf.Alias, err)
+	}
 	return NewEvent(conf, client, func(alias string, info map[string]interface{}) error {
 		var item DBItem
 		item.TX = info[KTX].(string)
 		item.LogIndex = info[KLogIndex].(uint)
 		item.Others, _ = json.Marshal(info)
 		id, err := InsertItem(db, alias, item)
-		log.Info("new event:", alias, id, item.TX, item.LogIndex, err)
+		log.Infoln("new event:", alias, id, item.TX, item.LogIndex, err)
 		return err
 	})
 }
@@ -59,13 +63,13 @@ func NewEvent(conf SubscriptionConf, client *ethclient.Client, cb EventCallback)
 	if err != nil {
 		data = GetABIData(conf.ABIFile)
 		if len(data) == 0 {
-			log.Error("fail to open abi file:", conf.ABIFile, err)
+			log.Errorln("fail to open abi file:", conf.ABIFile, err)
 			return nil, err
 		}
 	}
 	cAbi, err := abi.JSON(bytes.NewReader(data))
 	if err != nil {
-		log.Error("fail to load abi:", conf.ABIFile, err)
+		log.Errorln("fail to load abi:", conf.ABIFile, err)
 		return nil, err
 	}
 
@@ -99,7 +103,7 @@ func (e *Event) Run(start, end uint64) error {
 	query.ToBlock = new(big.Int).SetUint64(end)
 	logs, err := e.client.FilterLogs(context.Background(), query)
 	if err != nil {
-		log.Error("fail to FilterLogs:", e.conf.Alias, err)
+		log.Errorln("fail to FilterLogs:", e.conf.Alias, err)
 		return err
 	}
 
@@ -124,7 +128,7 @@ func (e *Event) Run(start, end uint64) error {
 		data = append(data, vLog.Data...)
 		err := e.eABI.UnpackIntoMap(info, tid, data)
 		if err != nil {
-			log.Warn("fail to UnpackIntoMap:", e.conf.Alias, info[KEventName], tid, len(data), err)
+			log.Warnln("fail to UnpackIntoMap:", e.conf.Alias, info[KEventName], tid, len(data), err)
 			info[KRawData] = data
 		}
 		if len(e.conf.Filter) == 0 {
@@ -136,7 +140,7 @@ func (e *Event) Run(start, end uint64) error {
 		}
 		err = check(e.conf.Filter, info)
 		if err != nil {
-			log.Info("filter limit:", err)
+			log.Infoln("filter limit:", err)
 			continue
 		}
 		err = e.cb(e.conf.Alias, info)
@@ -154,6 +158,7 @@ func check(filter map[string]string, info map[string]interface{}) error {
 	for key, value := range filter {
 		v, ok := info[key]
 		if !ok {
+			log.Debugln("filter check fail, hope exist the key:", key)
 			return fmt.Errorf("not exist key:%s", key)
 		}
 		bVal, _ := json.Marshal(v)
@@ -162,6 +167,7 @@ func check(filter map[string]string, info map[string]interface{}) error {
 			bVal = bVal[1 : len(bVal)-1]
 		}
 		if value != string(bVal) {
+			log.Debugf("filter check fail, different value, hope:%s,get:%s", value, bVal)
 			return fmt.Errorf("hope:%s,get:%s", value, bVal)
 		}
 	}
@@ -181,6 +187,7 @@ func newQuery(conf SubscriptionConf, cAbi abi.ABI) (ethereum.FilterQuery, error)
 			return query, nil
 		}
 		// 如果非空，且没有找到，说明ABI文件有问题，没有对应事件的ABI
+		log.Errorln("not found the Event Name from ABI:", conf.Alias, conf.EventName)
 		return query, fmt.Errorf("not found the Event Name from ABI:%s", conf.EventName)
 	}
 	// 只监听合约的指定事件
@@ -205,6 +212,7 @@ func newQuery(conf SubscriptionConf, cAbi abi.ABI) (ethereum.FilterQuery, error)
 				// 可能的场景：监听NFT的指定的tokenId的事件
 				bv, ok := new(big.Int).SetString(fv, 10)
 				if !ok {
+					log.Errorln("error filter value,unable parse to big.int:", conf.Alias, it.Name, fv)
 					return query, fmt.Errorf("error filter value,key:%s,hope int value:%s", it.Name, fv)
 				}
 				query.Topics = append(query.Topics, []common.Hash{common.BigToHash(bv)})

@@ -14,14 +14,11 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-type DBConf struct {
-	Type     string `json:"type,omitempty" yaml:"type"`
-	DSN      string `json:"dsn,omitempty" yaml:"dsn"`
-	LogLevel int    `json:"log_level,omitempty" yaml:"log_level"`
-}
-
 func NewDB(conf DBConf) (*gorm.DB, error) {
 	gConf := gorm.Config{}
+	if conf.LogLevel == 0 {
+		conf.LogLevel = int(logger.Error)
+	}
 	gConf.Logger = logger.New(log.StandardLogger(), logger.Config{
 		SlowThreshold:             200 * time.Millisecond,
 		LogLevel:                  logger.LogLevel(conf.LogLevel),
@@ -29,7 +26,7 @@ func NewDB(conf DBConf) (*gorm.DB, error) {
 		Colorful:                  false,
 	})
 
-	switch conf.Type {
+	switch conf.Engine {
 	case "mysql":
 		return gorm.Open(mysql.Open(conf.DSN), &gConf)
 	case "postgres":
@@ -60,7 +57,7 @@ func CreateEventTable(db *gorm.DB, alias string) error {
 		return nil
 	}
 	name := dyncTable(db, alias).Statement.Table
-	rst := db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX idx_%s ON %s(tx,log_index)", name, name))
+	rst := db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXIST idx_%s ON %s(tx,log_index)", name, name))
 	return rst.Error
 }
 
@@ -74,7 +71,7 @@ func InsertItem(db *gorm.DB, alias string, item DBItem) (uint, error) {
 		if it.ID > 0 {
 			return it.ID, nil
 		}
-		log.Warn("fail to insert item:", alias, it.TX, it.LogIndex, rst.Error)
+		log.Warnln("fail to insert item:", alias, it.TX, it.LogIndex, rst.Error)
 		return 0, rst.Error
 	}
 	return item.ID, nil
