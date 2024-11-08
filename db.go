@@ -57,7 +57,7 @@ func CreateEventTable(db *gorm.DB, alias string) error {
 		return nil
 	}
 	name := dyncTable(db, alias).Statement.Table
-	rst := db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXIST idx_%s ON %s(tx,log_index)", name, name))
+	rst := db.Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXIST idx_tx_%s ON %s(tx,log_index)", name, name))
 	return rst.Error
 }
 
@@ -78,8 +78,13 @@ func InsertItem(db *gorm.DB, alias string, item DBItem) (uint, error) {
 }
 
 func ListItems(db *gorm.DB, alias string, offest, limit int) ([]DBItem, error) {
+	var ids []int
+	for i := 0; i < limit; i++ {
+		ids = append(ids, i+offest)
+	}
 	var out []DBItem
-	rst := dyncTable(db, alias).Offset(offest).Limit(limit).Find(&out)
+	rst := dyncTable(db, alias).Find(&out, ids)
+
 	return out, rst.Error
 }
 

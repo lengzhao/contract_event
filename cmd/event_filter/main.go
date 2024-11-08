@@ -8,7 +8,7 @@ import (
 
 	contractevent "github.com/lengzhao/contract_event"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {

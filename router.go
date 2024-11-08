@@ -28,6 +28,7 @@ type reqLogParam struct {
 type RespItems struct {
 	Alias  string                   `json:"alias,omitempty"`
 	Offset int                      `json:"offset,omitempty"`
+	Limit  int                      `form:"limit,omitempty"`
 	Total  uint                     `json:"total,omitempty"`
 	Items  []map[string]interface{} `json:"items,omitempty"`
 }
@@ -48,9 +49,17 @@ func (lr *ginRouter) getEvent(c *gin.Context) {
 	if param.Limit < 1 {
 		param.Limit = 20
 	}
+	if param.Limit > 100 {
+		param.Limit = 100
+	}
+	if param.Offset < 0 {
+		param.Offset = 0
+	}
+
 	var out RespItems
 	out.Alias = param.Alias
 	out.Offset = param.Offset
+	out.Limit = param.Limit
 	out.Total, _ = ItemsTotal(lr.db, param.Alias)
 	items, _ := ListItems(lr.db, param.Alias, param.Offset, param.Limit)
 	for _, it := range items {
@@ -84,10 +93,16 @@ func (lr *ginRouter) requestUnnotifiedEvent(c *gin.Context) {
 	if param.Limit < 1 {
 		param.Limit = 20
 	}
+	if param.Limit > 100 {
+		param.Limit = 100
+	}
+
 	var out RespItems
 	out.Alias = param.Alias
+	out.Limit = param.Limit
 	out.Total, _ = ItemsTotal(lr.db, param.Alias)
 	offset, err := GetNotifyRecord(lr.db, param.Alias)
+	out.Offset = int(offset)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		log.Debugln("not any record:", param.Alias, err)
