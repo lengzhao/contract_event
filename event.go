@@ -37,6 +37,7 @@ const (
 	KTopic       = "topic"
 	KEventName   = "event_name"
 	KRawData     = "raw_data"
+	KDBIndex     = "db_index"
 )
 
 func NewEventWithDB(conf SubscriptionConf, client *ethclient.Client, db *gorm.DB) (*Event, error) {
@@ -46,6 +47,8 @@ func NewEventWithDB(conf SubscriptionConf, client *ethclient.Client, db *gorm.DB
 	}
 	return NewEvent(conf, client, func(alias string, info map[string]interface{}) error {
 		var item DBItem
+		lastID, _ := ItemsTotal(db, alias)
+		info[KDBIndex] = lastID + 1
 		item.TX = info[KTX].(string)
 		item.LogIndex = info[KLogIndex].(uint)
 		item.Others, _ = json.Marshal(info)

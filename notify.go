@@ -2,7 +2,6 @@ package contractevent
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -33,11 +32,7 @@ func (t *NotifyTask) Run(limit uint) error {
 	}
 	last := id
 	for _, it := range items {
-		info := make(map[string]interface{})
-		info["local_id"] = it.ID
-		json.Unmarshal(it.Others, &info)
-		data, _ := json.Marshal(info)
-		resp, err := http.DefaultClient.Post(t.webHook, "application/json", bytes.NewReader(data))
+		resp, err := http.DefaultClient.Post(t.webHook, "application/json", bytes.NewReader(it.Others))
 		if err != nil {
 			log.Errorln("fail to Post:", err)
 			return err
@@ -50,6 +45,7 @@ func (t *NotifyTask) Run(limit uint) error {
 		if it.ID > last {
 			last = it.ID
 		}
+		log.Infoln("notify success:", it.ID)
 	}
 	return SetNotifyRecord(t.db, t.alias, last)
 }
